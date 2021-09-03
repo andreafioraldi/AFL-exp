@@ -111,7 +111,7 @@ EXP_ST u32 cpu_to_bind = 0;           /* id of free CPU core to bind      */
 
 static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
 
-u8 skip_trim, randomic_corpus, no_favored;
+u8 skip_trim, randomic_corpus, no_favored, fitness_mode;
 
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
@@ -2471,9 +2471,9 @@ static u8 run_target(char** argv, u32 timeout) {
   tb4 = *(u32*)trace_bits;
 
 #ifdef WORD_SIZE_64
-  classify_counts((u64*)trace_bits);
+  //classify_counts((u64*)trace_bits);
 #else
-  classify_counts((u32*)trace_bits);
+  //classify_counts((u32*)trace_bits);
 #endif /* ^WORD_SIZE_64 */
 
   prev_timed_out = child_timed_out;
@@ -2631,6 +2631,12 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
     write_to_testcase(use_mem, q->len);
 
     fault = run_target(argv, use_tmout);
+
+#ifdef WORD_SIZE_64
+    classify_counts((u64*)trace_bits);
+#else
+    classify_counts((u32*)trace_bits);
+#endif /* ^WORD_SIZE_64 */
 
     /* stop_soon is set by the handler for Ctrl+C. When it's pressed,
        we want to bail out quickly. */
@@ -3166,6 +3172,27 @@ static void write_crash_readme(void) {
 
 }
 
+#include <math.h>
+// from https://github.com/vusec/vuzzer/blob/master/config.py#L214
+#define LMAX 50000
+
+double current_fitness = 0.0;
+
+double vuzzer_fitness(u32 input_len, u8* map) {
+
+  double fit = 0.0;
+  u32 i;
+  for (i = 0; i < MAP_SIZE; ++i) {
+  
+    fit += log((double)map[i]);
+  
+  }
+
+  if (input_len > LMAX)
+    fit /= log(input_len);
+  return fit;
+
+}
 
 /* Check if the result of an execve() during routine fuzzing is interesting,
    save or queue the input test case for further analysis if so. Returns 1 if
@@ -3180,13 +3207,41 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
   if (fault == crash_mode) {
 
-    /* Keep only if there are new bits in the map, add to queue for
-       future fuzzing, etc. */
+    if (fitness_mode) {
+      double fit = vuzzer_fitness(len, trace_bits);
 
-    if (!(hnb = has_new_bits(virgin_bits))) {
-      if (crash_mode) total_crashes++;
-      return 0;
-    }    
+#ifdef WORD_SIZE_64
+      classify_counts((u64*)trace_bits);
+#else
+      classify_counts((u32*)trace_bits);
+#endif /* ^WORD_SIZE_64 */
+
+      hnb = has_new_bits(virgin_bits);
+
+      if (!hnb && fit <= current_fitness)
+        return 0;
+      else if (fit > current_fitness) {
+          current_fitness = fit;
+          if (!hnb) hnb = 3;
+      }
+
+    } else {
+
+#ifdef WORD_SIZE_64
+      classify_counts((u64*)trace_bits);
+#else
+      classify_counts((u32*)trace_bits);
+#endif /* ^WORD_SIZE_64 */
+
+      /* Keep only if there are new bits in the map, add to queue for
+         future fuzzing, etc. */
+
+      if (!(hnb = has_new_bits(virgin_bits))) {
+        if (crash_mode) total_crashes++;
+        return 0;
+      }
+
+    }
 
 #ifndef SIMPLE_FILES
 
@@ -3261,6 +3316,12 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
         u8 new_fault;
         write_to_testcase(mem, len);
         new_fault = run_target(argv, hang_tmout);
+
+#ifdef WORD_SIZE_64
+        classify_counts((u64*)trace_bits);
+#else
+        classify_counts((u32*)trace_bits);
+#endif /* ^WORD_SIZE_64 */
 
         /* A corner case that one user reported bumping into: increasing the
            timeout actually uncovers a crash. Make sure we don't discard it if
@@ -4580,6 +4641,12 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
 
       fault = run_target(argv, exec_tmout);
       trim_execs++;
+
+#ifdef WORD_SIZE_64
+      classify_counts((u64*)trace_bits);
+#else
+      classify_counts((u32*)trace_bits);
+#endif /* ^WORD_SIZE_64 */
 
       if (stop_soon || fault == FAULT_ERROR) goto abort_trimming;
 
@@ -8019,6 +8086,7 @@ int main(int argc, char** argv) {
   if (getenv("AFL_DISABLE_TRIM")) skip_trim = 1;
   if (getenv("AFL_RANDOMIC_CORPUS")) randomic_corpus = 1;
   if (getenv("AFL_NO_FAVORED")) no_favored = 1;
+  if (getenv("AFL_FITNESS_MODE")) fitness_mode = 1;
 
   if (getenv("AFL_NO_FORKSRV"))    no_forkserver    = 1;
   if (getenv("AFL_NO_CPU_RED"))    no_cpu_meter_red = 1;
