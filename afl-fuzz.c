@@ -3201,7 +3201,7 @@ double vuzzer_fitness(u32 input_len, u8* map) {
 static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
 
   u8  *fn = "";
-  u8  hnb;
+  u8  hnb = 0;
   s32 fd;
   u8  keeping = 0, res;
 
