@@ -273,7 +273,11 @@ __attribute__((constructor(CONST_PRIO))) void __afl_auto_init(void) {
    edge (as opposed to every basic block). */
 
 void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
+#ifdef SKIP_COUNTS
+  __afl_area_ptr[*guard] = 1;
+#else
   __afl_area_ptr[*guard]++;
+#endif
 }
 
 

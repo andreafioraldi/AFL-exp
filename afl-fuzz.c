@@ -111,7 +111,7 @@ EXP_ST u32 cpu_to_bind = 0;           /* id of free CPU core to bind      */
 
 static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
 
-u8 skip_trim, randomic_corpus;
+u8 skip_trim, randomic_corpus, no_favored;
 
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
@@ -2693,7 +2693,7 @@ static u8 calibrate_case(char** argv, struct queue_entry* q, u8* use_mem,
   total_bitmap_size += q->bitmap_size;
   total_bitmap_entries++;
 
-  update_bitmap_score(q);
+  if (!no_favored) update_bitmap_score(q);
 
   /* If this case didn't result in new output from the instrumentation, tell
      parent. This is a non-critical problem, but something to warn the user
@@ -4642,7 +4642,7 @@ static u8 trim_case(char** argv, struct queue_entry* q, u8* in_buf) {
     close(fd);
 
     memcpy(trace_bits, clean_trace, MAP_SIZE);
-    update_bitmap_score(q);
+    if (!no_favored) update_bitmap_score(q);
 
   }
 
@@ -5032,32 +5032,34 @@ static u8 fuzz_one(char** argv) {
 
 #else
 
-  if (pending_favored) {
+  if (!no_favored) {
+    if (pending_favored) {
 
-    /* If we have any favored, non-fuzzed new arrivals in the queue,
-       possibly skip to them at the expense of already-fuzzed or non-favored
-       cases. */
+      /* If we have any favored, non-fuzzed new arrivals in the queue,
+         possibly skip to them at the expense of already-fuzzed or non-favored
+         cases. */
 
-    if ((queue_cur->was_fuzzed || !queue_cur->favored) &&
-        UR(100) < SKIP_TO_NEW_PROB) return 1;
+      if ((queue_cur->was_fuzzed || !queue_cur->favored) &&
+          UR(100) < SKIP_TO_NEW_PROB) return 1;
 
-  } else if (!dumb_mode && !queue_cur->favored && queued_paths > 10) {
+    } else if (!dumb_mode && !queue_cur->favored && queued_paths > 10) {
 
-    /* Otherwise, still possibly skip non-favored cases, albeit less often.
-       The odds of skipping stuff are higher for already-fuzzed inputs and
-       lower for never-fuzzed entries. */
+      /* Otherwise, still possibly skip non-favored cases, albeit less often.
+         The odds of skipping stuff are higher for already-fuzzed inputs and
+         lower for never-fuzzed entries. */
 
-    if (queue_cycle > 1 && !queue_cur->was_fuzzed) {
+      if (queue_cycle > 1 && !queue_cur->was_fuzzed) {
 
-      if (UR(100) < SKIP_NFAV_NEW_PROB) return 1;
+        if (UR(100) < SKIP_NFAV_NEW_PROB) return 1;
 
-    } else {
+      } else {
 
-      if (UR(100) < SKIP_NFAV_OLD_PROB) return 1;
+        if (UR(100) < SKIP_NFAV_OLD_PROB) return 1;
+
+      }
 
     }
-
-  }
+  } else if (queue_cur->was_fuzzed && UR(100) < SKIP_TO_NEW_PROB) return 1;
 
 #endif /* ^IGNORE_FINDS */
 
@@ -8016,6 +8018,7 @@ int main(int argc, char** argv) {
   
   if (getenv("AFL_DISABLE_TRIM")) skip_trim = 1;
   if (getenv("AFL_RANDOMIC_CORPUS")) randomic_corpus = 1;
+  if (getenv("AFL_NO_FAVORED")) no_favored = 1;
 
   if (getenv("AFL_NO_FORKSRV"))    no_forkserver    = 1;
   if (getenv("AFL_NO_CPU_RED"))    no_cpu_meter_red = 1;
@@ -8083,7 +8086,7 @@ int main(int argc, char** argv) {
 
   perform_dry_run(use_argv);
 
-  cull_queue();
+  if (!no_favored) cull_queue();
 
   show_init_stats();
 
@@ -8106,7 +8109,7 @@ int main(int argc, char** argv) {
 
     u8 skipped_fuzz;
 
-    cull_queue();
+    if (!no_favored) cull_queue();
 
     if (!queue_cur) {
 
