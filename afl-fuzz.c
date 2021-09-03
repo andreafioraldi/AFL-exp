@@ -111,6 +111,8 @@ EXP_ST u32 cpu_to_bind = 0;           /* id of free CPU core to bind      */
 
 static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
 
+u8 skip_trim, randomic_corpus;
+
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
            use_splicing,              /* Recombine input files?           */
@@ -271,6 +273,9 @@ static struct queue_entry *queue,     /* Fuzzing queue (linked list)      */
                           *queue_cur, /* Current offset within the queue  */
                           *queue_top, /* Top of the list                  */
                           *q_prev100; /* Previous 100 marker              */
+
+size_t corpus_size;
+struct queue_entry **corpus;
 
 static struct queue_entry*
   top_rated[MAP_SIZE];                /* Top entries for bitmap bytes     */
@@ -818,6 +823,12 @@ static void add_to_queue(u8* fname, u32 len, u8 passed_det) {
     queue_top = q;
 
   } else q_prev100 = queue = queue_top = q;
+
+  if (!corpus || corpus_size <= queued_paths) {
+      corpus_size += 1024;
+      corpus = ck_realloc(corpus, corpus_size);
+  }
+  corpus[queued_paths] = q;
 
   queued_paths++;
   pending_not_fuzzed++;
@@ -5114,7 +5125,7 @@ static u8 fuzz_one(char** argv) {
    * TRIMMING *
    ************/
 
-  if (!dumb_mode && !queue_cur->trim_done) {
+  if (!skip_trim && !dumb_mode && !queue_cur->trim_done) {
 
     u8 res = trim_case(argv, queue_cur, in_buf);
 
@@ -8002,6 +8013,9 @@ int main(int argc, char** argv) {
     if (qemu_mode)  FATAL("-Q and -n are mutually exclusive");
 
   }
+  
+  if (getenv("AFL_DISABLE_TRIM")) skip_trim = 1;
+  if (getenv("AFL_RANDOMIC_CORPUS")) randomic_corpus = 1;
 
   if (getenv("AFL_NO_FORKSRV"))    no_forkserver    = 1;
   if (getenv("AFL_NO_CPU_RED"))    no_cpu_meter_red = 1;
@@ -8143,8 +8157,13 @@ int main(int argc, char** argv) {
 
     if (stop_soon) break;
 
-    queue_cur = queue_cur->next;
-    current_entry++;
+    if (randomic_corpus) {
+      current_entry = UR(queued_paths);
+      queue_cur = corpus[current_entry];
+    } else {
+      queue_cur = queue_cur->next;
+      current_entry++;
+    }
 
   }
 
