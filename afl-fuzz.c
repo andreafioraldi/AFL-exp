@@ -111,7 +111,7 @@ EXP_ST u32 cpu_to_bind = 0;           /* id of free CPU core to bind      */
 
 static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
 
-u8 skip_trim, randomic_corpus, no_favored, fitness_mode;
+u8 skip_trim, randomic_corpus, no_favored, fitness_mode, fitness_only;
 
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
@@ -3216,7 +3216,8 @@ static u8 save_if_interesting(char** argv, void* mem, u32 len, u8 fault) {
       classify_counts((u32*)trace_bits);
 #endif /* ^WORD_SIZE_64 */
 
-      hnb = has_new_bits(virgin_bits);
+      if (!fitness_only)
+        hnb = has_new_bits(virgin_bits);
 
       if (!hnb && fit <= current_fitness)
         return 0;
@@ -8087,6 +8088,10 @@ int main(int argc, char** argv) {
   if (getenv("AFL_RANDOMIC_CORPUS")) randomic_corpus = 1;
   if (getenv("AFL_NO_FAVORED")) no_favored = 1;
   if (getenv("AFL_FITNESS_MODE")) fitness_mode = 1;
+  if (getenv("AFL_FITNESS_ONLY")) {
+    fitness_mode = 1;
+    fitness_only = 1;
+  }
 
   if (getenv("AFL_NO_FORKSRV"))    no_forkserver    = 1;
   if (getenv("AFL_NO_CPU_RED"))    no_cpu_meter_red = 1;
