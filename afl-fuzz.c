@@ -831,8 +831,8 @@ static void add_to_queue(u8* fname, u32 len, u8 passed_det) {
   } else q_prev100 = queue = queue_top = q;
 
   if (!corpus || corpus_size <= queued_paths) {
-      corpus_size += 1024;
-      corpus = ck_realloc(corpus, corpus_size);
+      corpus_size = queued_paths +1 + (1024 - (queued_paths +1) % 1024);
+      corpus = realloc(corpus, corpus_size);
   }
   corpus[queued_paths] = q;
 
@@ -3187,16 +3187,22 @@ double current_fitness = 0.0;
 double vuzzer_fitness(u32 input_len, u8* map) {
 
   double fit = 0.0;
+  unsigned bbnum = 0;
   u32 i;
   for (i = 0; i < MAP_SIZE; ++i) {
   
-    fit += log((double)map[i]);
+    if (map[i]) {
+  
+      fit += log((double)map[i]);
+      bbnum++;
+    
+    }
   
   }
 
   if (input_len > LMAX)
     fit /= log(input_len);
-  return fit;
+  return fit * bbnum;
 
 }
 
