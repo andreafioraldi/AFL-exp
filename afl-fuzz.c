@@ -87,6 +87,12 @@
 #  define EXP_ST static
 #endif /* ^AFL_LIB */
 
+#ifdef SLICING_MUTATION
+#define SLICING_MUT_ID 15
+#else
+#define SLICING_MUT_ID 14
+#endif
+
 /* Lots of globals, but mostly for the status UI and other things where it
    really makes no sense to haul them around as function parameters. */
 
@@ -5075,6 +5081,36 @@ static u8 could_be_interest(u32 old_val, u32 new_val, u8 blen, u8 check_le) {
 }
 
 
+/* Returns the testcase buf from the file behind this queue entry.
+  Increases the refcount. */
+
+static u8 *queue_testcase_get(struct queue_entry *q) {
+
+  u32 len = q->len;
+
+  /* first handle if no testcase cache is configured */
+
+  static u8 *buf;
+
+  buf = realloc(buf, len);
+
+  if (unlikely(!buf)) {
+
+    PFATAL("Unable to malloc '%s' with len %u", q->fname, len);
+
+  }
+
+  int fd = open(q->fname, O_RDONLY);
+
+  if (unlikely(fd < 0)) { PFATAL("Unable to open '%s'", q->fname); }
+
+  ck_read(fd, buf, len, q->fname);
+  close(fd);
+  return buf;
+
+}
+
+
 /* Take the current entry from the queue, fuzz it for a while. This
    function is a tad too long... returns 0 if fuzzed successfully, 1 if
    skipped or bailed out. */
@@ -6243,7 +6279,7 @@ havoc_stage:
  
     for (i = 0; i < use_stacking; i++) {
 
-      switch (UR(15 + ((extras_cnt + a_extras_cnt) ? 2 : 0))) {
+      switch (UR((SLICING_MUT_ID+1) + ((extras_cnt + a_extras_cnt) ? 2 : 0))) {
 
         case 0:
 
@@ -6519,10 +6555,79 @@ havoc_stage:
 
           }
 
+#ifdef SLICING_MUTATION
+        case SLICING_MUT_ID: {
+
+          /* Splicing otherwise if we are still here.
+             Overwrite bytes with a randomly selected chunk from another
+             testcase or insert that chunk. */
+
+          /* Pick a random queue entry and seek to it. */
+
+          u32 tid;
+          do {
+
+            tid = UR(queued_paths);
+
+          } while (tid == current_entry || corpus[tid]->len < 4);
+
+          /* Get the testcase for splicing. */
+          struct queue_entry *target = corpus[tid];
+          u32                 new_len = target->len;
+          u8 *                new_buf = queue_testcase_get(target);
+
+          if ((temp_len >= 2 && UR(2) == 0) || temp_len + HAVOC_BLK_XL >= MAX_FILE) {
+
+            /* overwrite mode */
+
+            u32 copy_from, copy_to, copy_len;
+
+            copy_len = choose_block_len(new_len - 1);
+            if (copy_len > temp_len) copy_len = temp_len;
+
+            copy_from = UR(new_len - copy_len + 1);
+            copy_to = UR(temp_len - copy_len + 1);
+
+            memmove(out_buf + copy_to, new_buf + copy_from, copy_len);
+
+          } else {
+
+            /* insert mode */
+
+            u32 clone_from, clone_to, clone_len;
+
+            clone_len = choose_block_len(new_len);
+            clone_from = UR(new_len - clone_len + 1);
+            clone_to = UR(temp_len + 1);
+            
+            new_buf = ck_alloc_nozero(temp_len + clone_len +1);
+
+            /* Head */
+
+            memcpy(new_buf, out_buf, clone_to);
+
+            /* Inserted part */
+
+            memcpy(new_buf + clone_to, out_buf + clone_from, clone_len);
+
+            /* Tail */
+            memcpy(new_buf + clone_to + clone_len, out_buf + clone_to,
+                   temp_len - clone_to);
+
+            ck_free(out_buf);
+            out_buf = new_buf;
+            temp_len += clone_len;
+
+          }
+
+          break;
+        }
+#endif
+
         /* Values 15 and 16 can be selected only if there are any extras
            present in the dictionaries. */
 
-        case 15: {
+        case (SLICING_MUT_ID+1): {
 
             /* Overwrite bytes with an extra. */
 
@@ -6559,7 +6664,7 @@ havoc_stage:
 
           }
 
-        case 16: {
+        case (SLICING_MUT_ID+2): {
 
             u32 use_extra, extra_len, insert_at = UR(temp_len + 1);
             u8* new_buf;
