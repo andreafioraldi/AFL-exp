@@ -117,7 +117,8 @@ EXP_ST u32 cpu_to_bind = 0;           /* id of free CPU core to bind      */
 
 static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
 
-u8 skip_trim, randomic_corpus, no_favored, fitness_mode, fitness_only;
+u8 skip_trim, randomic_corpus, no_favored, fitness_mode, fitness_only,
+   random_energy, disable_handicap;
 
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
@@ -4561,9 +4562,19 @@ static void show_init_stats(void) {
        random scheduler jitter is less likely to have any impact, and because
        our patience is wearing thin =) */
 
-    if (avg_us > 50000) exec_tmout = avg_us * 2 / 1000;
-    else if (avg_us > 10000) exec_tmout = avg_us * 3 / 1000;
-    else exec_tmout = avg_us * 5 / 1000;
+    if (getenv("AFL_DOUBLE_TIMEOUT")) {
+
+      if (avg_us > 50000) exec_tmout = avg_us * 4 / 1000;
+      else if (avg_us > 10000) exec_tmout = avg_us * 6 / 1000;
+      else exec_tmout = avg_us * 10 / 1000;
+
+    } else {
+
+      if (avg_us > 50000) exec_tmout = avg_us * 2 / 1000;
+      else if (avg_us > 10000) exec_tmout = avg_us * 3 / 1000;
+      else exec_tmout = avg_us * 5 / 1000;
+    
+    }
 
     exec_tmout = MAX(exec_tmout, max_us / 1000);
     exec_tmout = (exec_tmout + EXEC_TM_ROUND) / EXEC_TM_ROUND * EXEC_TM_ROUND;
@@ -4836,6 +4847,12 @@ static u32 choose_block_len(u32 limit) {
 
 static u32 calculate_score(struct queue_entry* q) {
 
+  if (random_energy) {
+
+    return 1 + UR(128);
+
+  }
+
   u32 avg_exec_us = total_cal_us / total_cal_cycles;
   u32 avg_bitmap_size = total_bitmap_size / total_bitmap_entries;
   u32 perf_score = 100;
@@ -4866,15 +4883,19 @@ static u32 calculate_score(struct queue_entry* q) {
      in the game we learned about this path. Latecomers are allowed to run
      for a bit longer until they catch up with the rest. */
 
-  if (q->handicap >= 4) {
+  if (!disable_handicap) {
 
-    perf_score *= 4;
-    q->handicap -= 4;
+    if (q->handicap >= 4) {
 
-  } else if (q->handicap) {
+      perf_score *= 4;
+      q->handicap -= 4;
 
-    perf_score *= 2;
-    q->handicap--;
+    } else if (q->handicap) {
+
+      perf_score *= 2;
+      q->handicap--;
+
+    }
 
   }
 
@@ -8203,6 +8224,8 @@ int main(int argc, char** argv) {
     fitness_mode = 1;
     fitness_only = 1;
   }
+  if (getenv("AFL_RANDOM_ENERGY")) random_energy = 1;
+  if (getenv("AFL_DISABLE_HANDICAP")) disable_handicap = 1;
 
   if (getenv("AFL_NO_FORKSRV"))    no_forkserver    = 1;
   if (getenv("AFL_NO_CPU_RED"))    no_cpu_meter_red = 1;
