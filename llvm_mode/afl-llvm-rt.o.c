@@ -280,6 +280,7 @@ void __sanitizer_cov_trace_pc_guard(uint32_t* guard) {
 #endif
 }
 
+uint32_t __afl_final_loc;
 
 /* Init callback. Populates instrumentation IDs. Note that we're using
    ID of 0 as a special value to indicate non-instrumented bits. That may
@@ -299,19 +300,37 @@ void __sanitizer_cov_trace_pc_guard_init(uint32_t* start, uint32_t* stop) {
     fprintf(stderr, "[-] ERROR: Invalid AFL_INST_RATIO (must be 1-100).\n");
     abort();
   }
+  
+  u8 coll_free = !!getenv("AFL_COLLISION_FREE");
 
-  /* Make sure that the first element in the range is always set - we use that
-     to avoid duplicate calls (which can happen as an artifact of the underlying
-     implementation in LLVM). */
+  if (coll_free) {
 
-  *(start++) = R(MAP_SIZE - 1) + 1;
+    *(start++) = ++__afl_final_loc & (MAP_SIZE - 1);
+    while (start < stop) {
 
-  while (start < stop) {
+      if (R(100) < inst_ratio) *start = ++__afl_final_loc & (MAP_SIZE - 1);
+      else *start = 0;
 
-    if (R(100) < inst_ratio) *start = R(MAP_SIZE - 1) + 1;
-    else *start = 0;
+      start++;
 
-    start++;
+    }
+  
+  } else {
+
+    /* Make sure that the first element in the range is always set - we use that
+       to avoid duplicate calls (which can happen as an artifact of the underlying
+       implementation in LLVM). */
+
+    *(start++) = R(MAP_SIZE - 1) + 1;
+
+    while (start < stop) {
+
+      if (R(100) < inst_ratio) *start = R(MAP_SIZE - 1) + 1;
+      else *start = 0;
+
+      start++;
+
+    }
 
   }
 
