@@ -6627,22 +6627,22 @@ havoc_stage:
             clone_from = UR(new_len - clone_len + 1);
             clone_to = UR(temp_len + 1);
             
-            new_buf = ck_alloc_nozero(temp_len + clone_len +1);
+            u8* temp_buf = ck_alloc_nozero(temp_len + clone_len +1);
 
             /* Head */
 
-            memcpy(new_buf, out_buf, clone_to);
+            memcpy(temp_buf, out_buf, clone_to);
 
             /* Inserted part */
 
-            memcpy(new_buf + clone_to, out_buf + clone_from, clone_len);
+            memcpy(temp_buf + clone_to, new_buf + clone_from, clone_len);
 
             /* Tail */
-            memcpy(new_buf + clone_to + clone_len, out_buf + clone_to,
+            memcpy(temp_buf + clone_to + clone_len, out_buf + clone_to,
                    temp_len - clone_to);
 
             ck_free(out_buf);
-            out_buf = new_buf;
+            out_buf = temp_buf;
             temp_len += clone_len;
 
           }
