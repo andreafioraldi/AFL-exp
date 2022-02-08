@@ -117,8 +117,8 @@ EXP_ST u32 cpu_to_bind = 0;           /* id of free CPU core to bind      */
 
 static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
 
-u8 skip_trim, randomic_corpus, no_favored, fitness_mode, fitness_only,
-   random_energy, disable_handicap;
+u8 skip_trim, randomic_corpus, lifo_corpus, no_favored, fitness_mode,
+   fitness_only, random_energy, min_energy, max_energy, disable_handicap;
 
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
@@ -4849,9 +4849,12 @@ static u32 calculate_score(struct queue_entry* q) {
 
   if (random_energy) {
 
-    return 1 + UR(128);
+    return 25 + UR(HAVOC_MAX_MULT * 100 - 24);
 
   }
+
+  if (min_energy) return 25;
+  if (max_energy) return HAVOC_MAX_MULT * 100;
 
   u32 avg_exec_us = total_cal_us / total_cal_cycles;
   u32 avg_bitmap_size = total_bitmap_size / total_bitmap_entries;
@@ -8218,6 +8221,7 @@ int main(int argc, char** argv) {
   
   if (getenv("AFL_DISABLE_TRIM")) skip_trim = 1;
   if (getenv("AFL_RANDOMIC_CORPUS")) randomic_corpus = 1;
+  if (getenv("AFL_LIFO_CORPUS")) lifo_corpus = 1;
   if (getenv("AFL_NO_FAVORED")) no_favored = 1;
   if (getenv("AFL_FITNESS_MODE")) fitness_mode = 1;
   if (getenv("AFL_FITNESS_ONLY")) {
@@ -8225,6 +8229,8 @@ int main(int argc, char** argv) {
     fitness_only = 1;
   }
   if (getenv("AFL_RANDOM_ENERGY")) random_energy = 1;
+  if (getenv("AFL_MIN_ENERGY")) min_energy = 1;
+  if (getenv("AFL_MAX_ENERGY")) max_energy = 1;
   if (getenv("AFL_DISABLE_HANDICAP")) disable_handicap = 1;
 
   if (getenv("AFL_NO_FORKSRV"))    no_forkserver    = 1;
@@ -8370,6 +8376,25 @@ int main(int argc, char** argv) {
     if (randomic_corpus) {
       current_entry = UR(queued_paths);
       queue_cur = corpus[current_entry];
+    } else if (lifo_corpus) {
+      if (queued_paths == prev_queued) {
+        if (current_entry == 0) {
+          current_entry = queued_paths -1;
+        } else {
+          current_entry--;
+        }
+        if (pending_favored) {
+          while (corpus[current_entry]->was_fuzzed) {
+            if (current_entry == 0) {
+                current_entry = queued_paths -1;
+            } else {
+                current_entry--;
+            }
+          }
+        }
+      } else {
+        current_entry = queued_paths -1;
+      }
     } else {
       queue_cur = queue_cur->next;
       current_entry++;
