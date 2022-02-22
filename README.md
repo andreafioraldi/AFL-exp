@@ -1,3 +1,27 @@
+# Experiments configuration
+
+This project modifies several parts of the original AFL codebase, to measure the
+effects of different design choices. 
+Here, we list the env variables that regulate the activation of the patches we 
+introduced. 
+
+1. Comment/Uncomment the macro `#define SKIP_COUNTS` to perform the hitcounts eval
+2. `AFL_FITNESS_MODE` enables AFL to use a fitness function that mimics the VUzzer one
+3. `AFL_NO_FAVORED` enables AFL not to consider favored testcases for corpus culling 
+4. For the score calculation, four different configurations exist
+    - `AFL_MAX_ENERGY` sets the score to the maximum value
+    - `AFL_MIN_ENERGY` sets the score to the minimum value
+    - `AFL_DISABLE_HANDICAP` does not prioritize novel testcases
+    - `AFL_RANDOM_ENERGY` sets a random constant
+5. Also for the corpus scheduling policies, we enable two choices
+    - `AFL_LIFO_CORPUS` selects testcases with LIFO policy instead of FIFO
+    - `AFL_RANDOMIC_CORPUS` selects testcases randomly from corpus
+6. Set `CFLAGS="-DSLICING_MUTATION=1"` when compiling the AFL codebase to perform Splicing as a mutation
+7. `AFL_DISABLE_TRIM` disables testcases trimming
+8. `AFL_DOUBLE_TIMEOUT` doubles the timeout compared to the default heuristics
+9. `AFL_COLLISION_FREE` uses a SanitizerCoverage constructor that avoids collisions
+
+
 # american fuzzy lop
 
 [![Build Status](https://travis-ci.org/google/AFL.svg?branch=master)](https://travis-ci.org/google/AFL)
