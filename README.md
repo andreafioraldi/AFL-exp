@@ -19,7 +19,7 @@ introduced.
 6. Set `CFLAGS="-DSLICING_MUTATION=1"` when compiling the AFL codebase to perform Splicing as a mutation
 7. `AFL_DISABLE_TRIM` disables testcases trimming
 8. `AFL_DOUBLE_TIMEOUT` doubles the timeout compared to the default heuristics
-9. `AFL_COLLISION_FREE` uses a SanitizerCoverage constructor that avoids collisions. Enable this at compile-time
+9. `AFL_COLLISION_FREE` uses a SanitizerCoverage constructor that avoids collisions
 
 
 # american fuzzy lop
