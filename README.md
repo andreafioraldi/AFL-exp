@@ -20,7 +20,7 @@ introduced.
 7. `AFL_DISABLE_TRIM` disables testcases trimming
 8. `AFL_DOUBLE_TIMEOUT` doubles the timeout compared to the default heuristics
 9. `AFL_COLLISION_FREE` uses a SanitizerCoverage constructor that avoids collisions
-
+10. `AFL_NO_FAV_FACTOR` does corpus culling without prioritizing faster-executing or smaller test cases 
 
 # american fuzzy lop
 

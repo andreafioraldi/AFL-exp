@@ -118,7 +118,8 @@ EXP_ST u32 cpu_to_bind = 0;           /* id of free CPU core to bind      */
 static u32 stats_update_freq = 1;     /* Stats update frequency (execs)   */
 
 u8 skip_trim, randomic_corpus, lifo_corpus, no_favored, fitness_mode,
-   fitness_only, random_energy, min_energy, max_energy, disable_handicap;
+   fitness_only, random_energy, min_energy, max_energy, disable_handicap,
+   no_fav_factor;
 
 EXP_ST u8  skip_deterministic,        /* Skip deterministic stages?       */
            force_deterministic,       /* Force deterministic stages?      */
@@ -1296,7 +1297,10 @@ static void update_bitmap_score(struct queue_entry* q) {
 
          /* Faster-executing or smaller test cases are favored. */
 
-         if (fav_factor > top_rated[i]->exec_us * top_rated[i]->len) continue;
+         if (!no_fav_factor) {
+            if (fav_factor > top_rated[i]->exec_us * top_rated[i]->len)
+                continue;
+         }
 
          /* Looks like we're going to win. Decrease ref count for the
             previous winner, discard its trace_bits[] if necessary. */
@@ -8223,6 +8227,7 @@ int main(int argc, char** argv) {
   if (getenv("AFL_RANDOMIC_CORPUS")) randomic_corpus = 1;
   if (getenv("AFL_LIFO_CORPUS")) lifo_corpus = 1;
   if (getenv("AFL_NO_FAVORED")) no_favored = 1;
+  if (getenv("AFL_NO_FAV_FACTOR")) no_fav_factor = 1;
   if (getenv("AFL_FITNESS_MODE")) fitness_mode = 1;
   if (getenv("AFL_FITNESS_ONLY")) {
     fitness_mode = 1;
