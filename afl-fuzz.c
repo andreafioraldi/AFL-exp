@@ -8365,6 +8365,8 @@ int main(int argc, char** argv) {
 
     }
 
+    u32 prev_queue_one = queued_paths;
+
     skipped_fuzz = fuzz_one(use_argv);
 
     if (!stop_soon && sync_id && !skipped_fuzz) {
@@ -8382,7 +8384,7 @@ int main(int argc, char** argv) {
       current_entry = UR(queued_paths);
       queue_cur = corpus[current_entry];
     } else if (lifo_corpus) {
-      if (queued_paths == prev_queued) {
+      if (queued_paths == prev_queue_one) {
         if (current_entry == 0) {
           current_entry = queued_paths -1;
         } else {
@@ -8400,6 +8402,7 @@ int main(int argc, char** argv) {
       } else {
         current_entry = queued_paths -1;
       }
+      queue_cur = corpus[current_entry];
     } else {
       queue_cur = queue_cur->next;
       current_entry++;
