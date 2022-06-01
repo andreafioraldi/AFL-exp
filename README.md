@@ -16,7 +16,7 @@ introduced.
 5. Also for the corpus scheduling policies, we enable two choices
     - `AFL_LIFO_CORPUS` selects testcases with LIFO policy instead of FIFO
     - `AFL_RANDOMIC_CORPUS` selects testcases randomly from corpus
-6. Set `CFLAGS="-DSLICING_MUTATION=1"` when compiling the AFL codebase to perform Splicing as a mutation
+6. Set `CFLAGS="-DSPLICING_MUTATION=1"` when compiling the AFL codebase to perform Splicing as a mutation
 7. `AFL_DISABLE_TRIM` disables testcases trimming
 8. `AFL_DOUBLE_TIMEOUT` doubles the timeout compared to the default heuristics
 9. `AFL_COLLISION_FREE` uses a SanitizerCoverage constructor that avoids collisions

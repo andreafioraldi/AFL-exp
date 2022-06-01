@@ -87,10 +87,10 @@
 #  define EXP_ST static
 #endif /* ^AFL_LIB */
 
-#ifdef SLICING_MUTATION
-#define SLICING_MUT_ID 15
+#ifdef SPLICING_MUTATION
+#define SPLICING_MUT_ID 15
 #else
-#define SLICING_MUT_ID 14
+#define SPLICING_MUT_ID 14
 #endif
 
 /* Lots of globals, but mostly for the status UI and other things where it
@@ -6313,7 +6313,7 @@ havoc_stage:
  
     for (i = 0; i < use_stacking; i++) {
 
-      switch (UR((SLICING_MUT_ID+1) + ((extras_cnt + a_extras_cnt) ? 2 : 0))) {
+      switch (UR((SPLICING_MUT_ID+1) + ((extras_cnt + a_extras_cnt) ? 2 : 0))) {
 
         case 0:
 
@@ -6589,8 +6589,8 @@ havoc_stage:
 
           }
 
-#ifdef SLICING_MUTATION
-        case SLICING_MUT_ID: {
+#ifdef SPLICING_MUTATION
+        case SPLICING_MUT_ID: {
 
           /* Splicing otherwise if we are still here.
              Overwrite bytes with a randomly selected chunk from another
@@ -6661,7 +6661,7 @@ havoc_stage:
         /* Values 15 and 16 can be selected only if there are any extras
            present in the dictionaries. */
 
-        case (SLICING_MUT_ID+1): {
+        case (SPLICING_MUT_ID+1): {
 
             /* Overwrite bytes with an extra. */
 
@@ -6698,7 +6698,7 @@ havoc_stage:
 
           }
 
-        case (SLICING_MUT_ID+2): {
+        case (SPLICING_MUT_ID+2): {
 
             u32 use_extra, extra_len, insert_at = UR(temp_len + 1);
             u8* new_buf;
