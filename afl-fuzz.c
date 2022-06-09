@@ -6596,6 +6596,8 @@ havoc_stage:
              Overwrite bytes with a randomly selected chunk from another
              testcase or insert that chunk. */
 
+          if (queued_paths < 2) break;
+
           /* Pick a random queue entry and seek to it. */
 
           u32 tid;
