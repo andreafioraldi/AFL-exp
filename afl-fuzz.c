@@ -6605,10 +6605,12 @@ havoc_stage:
 
             tid = UR(queued_paths);
 
-          } while (tid == current_entry || corpus[tid]->len < 4);
+          } while (tid == current_entry);
 
           /* Get the testcase for splicing. */
           struct queue_entry *target = corpus[tid];
+          if (target->len < 4) break;
+
           u32                 new_len = target->len;
           u8 *                new_buf = queue_testcase_get(target);
 
